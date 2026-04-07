@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>scrbl</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hqub.Last.fm" Version="2.5.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="10.0.5" />
+    <PackageReference Include="Tmds.DBus.Generator" Version="0.91.1" />
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.91.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="dbus-xml/org.mpris.MediaPlayer2.Player.xml"
+                     GenerateDBusTypes="true"
+                     Namespace="Scrobbler.DBus.Mpris" />
+    <AdditionalFiles Include="dbus-xml/org.scrobbler.Daemon.xml"
+                     GenerateDBusTypes="true"
+                     Namespace="Scrobbler.DBus" />
+  </ItemGroup>
+
+</Project>

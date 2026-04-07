@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Scrobbler.Cli/Scrobbler.Cli.csproj" />
+  <Project Path="Scrobbler/Scrobbler.csproj" />
+</Solution>

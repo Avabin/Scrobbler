@@ -1,0 +1,27 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+  "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+  <interface name="org.scrobbler.Daemon">
+    <method name="ListSources">
+      <arg name="sources" type="as" direction="out"/>
+    </method>
+    <method name="GetSelectedSource">
+      <arg name="source" type="s" direction="out"/>
+    </method>
+    <method name="SetSource">
+      <arg name="playerName" type="s" direction="in"/>
+    </method>
+    <method name="GetScrobblePercent">
+      <arg name="percent" type="i" direction="out"/>
+    </method>
+    <method name="SetScrobblePercent">
+      <arg name="percent" type="i" direction="in"/>
+    </method>
+    <method name="GetStatusJson">
+      <arg name="status" type="s" direction="out"/>
+    </method>
+    <method name="NotifyAuthenticated">
+      <arg name="sessionKey" type="s" direction="in"/>
+    </method>
+  </interface>
+</node>

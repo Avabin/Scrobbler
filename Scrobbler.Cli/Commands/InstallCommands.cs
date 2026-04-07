@@ -18,9 +18,9 @@ public class InstallCommands
     /// <summary>
     /// Generate and install a systemd user unit file for the scrobbler daemon.
     /// </summary>
-    /// <param name="execPath">-e, Path to the scrbl daemon binary. Defaults to 'scrbl' on PATH.</param>
+    /// <param name="execPath">Path to the scrbl daemon binary. Defaults to 'scrbl' on PATH.</param>
     [Command("install")]
-    public async Task Install(string? execPath = null)
+    public async Task Install([Argument] string? execPath = null)
     {
         // Resolve daemon binary path
         execPath ??= await FindOnPath("scrbl");

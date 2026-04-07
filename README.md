@@ -74,7 +74,7 @@ systemctl --user start scrobbler.service
 If `scrbl` is not yet on `PATH`, pass the daemon path explicitly:
 
 ```bash
-scrbl-cli install -e /absolute/path/to/scrbl
+scrbl-cli install /absolute/path/to/scrbl
 ```
 
 ### Uninstall
@@ -150,10 +150,19 @@ systemctl --user start scrobbler.service
 scrbl-cli list sources
 ```
 
+This now prints 1-based indices, for example:
+
+```text
+Available music players:
+  1. spotify *
+  2. vlc
+```
+
 5. Optionally pin one player and change the threshold:
 
 ```bash
-scrbl-cli set source spotify
+scrbl-cli set source 1
+scrbl-cli set source --name spotify
 scrbl-cli set scrobble-percent 50
 ```
 
@@ -167,12 +176,12 @@ scrbl-cli status
 
 - `scrbl-cli auth` opens the Last.fm authorization page, waits for confirmation, stores the session key, and notifies the daemon if it is running.
 - `scrbl-cli status` shows authentication state, selected player, available players, current track, playback progress, and the last scrobbled track.
-- `scrbl-cli list sources` lists detected MPRIS players and marks the currently selected one.
-- `scrbl-cli set source <name>` stores the preferred player.
+- `scrbl-cli list sources` lists detected MPRIS players with 1-based indices and marks the currently selected one.
+- `scrbl-cli set source <index>` stores the preferred player by index, and `scrbl-cli set source --name <player>` does the same by player name.
 - `scrbl-cli set scrobble-percent <0-100>` changes how much of a track must be played before it is scrobbled.
 
 ### Troubleshooting
 
-- If `scrbl-cli install` says it cannot find `scrbl`, either copy `scrbl` onto your `PATH` first or pass `-e` with the full path.
+- If `scrbl-cli install` says it cannot find `scrbl`, either copy `scrbl` onto your `PATH` first or pass the full path as the command argument.
 - If `scrbl-cli status` says the daemon is not running, check `systemctl --user status scrobbler.service` and `journalctl --user -u scrobbler.service -f`.
 - If CLI release publish fails with a NativeAOT linker error, install `clang` and retry the publish command.

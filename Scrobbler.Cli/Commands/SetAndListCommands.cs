@@ -29,10 +29,11 @@ public class ListCommands
         var selected = await daemon.GetSelectedSourceAsync();
 
         Console.WriteLine("Available music players:");
-        foreach (var source in sources)
+        for (var i = 0; i < sources.Length; i++)
         {
+            var source = sources[i];
             var marker = string.Equals(source, selected, StringComparison.OrdinalIgnoreCase) ? " *" : "";
-            Console.WriteLine($"  {source}{marker}");
+            Console.WriteLine($"  {i + 1}. {source}{marker}");
         }
 
         if (!string.IsNullOrEmpty(selected))
@@ -49,13 +50,58 @@ public class SetCommands
     /// <summary>
     /// Set the preferred music player for scrobbling.
     /// </summary>
-    /// <param name="name">The player name (e.g. spotify, firefox, vlc).</param>
+    /// <param name="index">The 1-based player index shown by `list sources`.</param>
+    /// <param name="playerName">-n|--name, The player name (e.g. spotify, firefox, vlc).</param>
     [Command("source")]
-    public async Task Source(string name)
+    public async Task Source([Argument] int? index = null, string? playerName = null)
     {
         var daemon = await DaemonProxy.ConnectAsync();
-        await daemon.SetSourceAsync(name);
-        Console.WriteLine($"Preferred player set to: {name}");
+        var sources = await daemon.ListSourcesAsync();
+
+        if (index is null && string.IsNullOrWhiteSpace(playerName))
+        {
+            Console.WriteLine("Specify either a player index or --name.");
+            return;
+        }
+
+        if (index is not null && !string.IsNullOrWhiteSpace(playerName))
+        {
+            Console.WriteLine("Specify either a player index or --name, not both.");
+            return;
+        }
+
+        if (sources.Length == 0)
+        {
+            Console.WriteLine("No music players found.");
+            return;
+        }
+
+        string sourceName;
+        if (index is not null)
+        {
+            var sourceIndex = index.Value - 1;
+            if (sourceIndex < 0 || sourceIndex >= sources.Length)
+            {
+                Console.WriteLine($"Invalid player index: {index}. Use 'scrbl-cli list sources' to see valid indices.");
+                return;
+            }
+
+            sourceName = sources[sourceIndex];
+        }
+        else
+        {
+            sourceName = sources.FirstOrDefault(source =>
+                string.Equals(source, playerName, StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
+
+            if (string.IsNullOrEmpty(sourceName))
+            {
+                Console.WriteLine($"Unknown player name: {playerName}. Use 'scrbl-cli list sources' to see discovered players.");
+                return;
+            }
+        }
+
+        await daemon.SetSourceAsync(sourceName);
+        Console.WriteLine($"Preferred player set to: {sourceName}");
     }
 
     /// <summary>
@@ -63,7 +109,7 @@ public class SetCommands
     /// </summary>
     /// <param name="percent">Percentage of track that must be played before scrobbling (0-100).</param>
     [Command("scrobble-percent")]
-    public async Task ScrobblePercent([System.ComponentModel.DataAnnotations.Range(0, 100)] int percent)
+    public async Task ScrobblePercent([Argument][System.ComponentModel.DataAnnotations.Range(0, 100)] int percent)
     {
         var daemon = await DaemonProxy.ConnectAsync();
         await daemon.SetScrobblePercentAsync(percent);
@@ -75,7 +121,7 @@ public class SetCommands
     /// </summary>
     /// <param name="key">The Last.fm API key.</param>
     [Command("api-key")]
-    public Task ApiKey(string key)
+    public Task ApiKey([Argument] string key)
     {
         SaveToConfig("ApiKey", key);
         Console.WriteLine("API key saved.");
@@ -87,7 +133,7 @@ public class SetCommands
     /// </summary>
     /// <param name="secret">The Last.fm API secret.</param>
     [Command("api-secret")]
-    public Task ApiSecret(string secret)
+    public Task ApiSecret([Argument] string secret)
     {
         SaveToConfig("ApiSecret", secret);
         Console.WriteLine("API secret saved.");

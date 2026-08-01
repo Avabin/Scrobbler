@@ -1,7 +1,7 @@
 class Scrobbler < Formula
   desc "Linux Last.fm scrobbler: MPRIS daemon (scrbl) + CLI (scrbl-cli)"
   homepage "https://github.com/Avabin/Scrobbler"
-  url "https://github.com/Avabin/Scrobbler.git", using: :git, tag: "v0.1.0", revision: "253bd83a3d78b78ab7814d28f43e69f77122f487"
+  url "https://github.com/Avabin/Scrobbler.git", using: :git, tag: "v0.1.1", revision: "11991ef3c48c94a71d5965f7ec31916ff9d6c244"
   license "MIT"
 
   depends_on "brotli" => :build

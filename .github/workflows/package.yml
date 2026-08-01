@@ -29,7 +29,6 @@ jobs:
         with:
           global-json-file: global.json
           cache: true
-          cache-dependency-path: "**/packages.lock.json"
 
       - name: Build and package via Homebrew (from source)
         run: |

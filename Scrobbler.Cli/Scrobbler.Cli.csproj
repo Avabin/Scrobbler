@@ -15,8 +15,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Tmds.DBus.Generator" Version="0.91.1" />
-    <PackageReference Include="Tmds.DBus.Protocol" Version="0.91.1" />
+    <PackageReference Include="Tmds.DBus.Generator" Version="0.94.2" />
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.94.2" />
   </ItemGroup>
 
   <ItemGroup>

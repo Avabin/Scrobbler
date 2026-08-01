@@ -35,7 +35,6 @@ jobs:
         with:
           global-json-file: global.json
           cache: true
-          cache-dependency-path: "**/packages.lock.json"
 
       - name: Restore
         run: dotnet restore Scrobbler.slnx

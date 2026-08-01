@@ -47,6 +47,43 @@ There are two parts to installation:
 
 The repository does not ship tracked binaries. Build or publish the projects locally, then install from those outputs.
 
+### Install via Homebrew
+
+The formula lives in [`Formula/scrobbler.rb`](Formula/scrobbler.rb). It installs both binaries — `scrbl` (the daemon) and `scrbl-cli` (the CLI) — into one keg. The daemon is
+exposed through a Homebrew `service` block, so `brew services` manages it as a
+**user-scoped** systemd service (`~/.config/systemd/user/homebrew.scrobbler.service`); the
+CLI is a native **NativeAOT** single binary on your `PATH` (no .NET runtime required, fast
+startup), while the daemon is published self-contained with its bundled runtime.
+
+The build needs the native toolchain for the CLI's AOT compile; Homebrew pulls the required
+`llvm` (clang), `brotli`, and `zlib` build dependencies automatically.
+
+From the repository root (the formula installs by source):
+
+```bash
+brew install --build-from-source ./Formula/scrobbler.rb
+```
+
+Or, once this is set up as a tap (a repo named `homebrew-scrobbler`):
+
+```bash
+brew tap Avabin/homebrew-scrobbler
+brew install Avabin/homebrew-scrobbler/scrobbler
+```
+
+Start the daemon as a user systemd service:
+
+```bash
+brew services start scrobbler
+```
+
+`brew services stop/restart` control it the same way. The `scrbl-cli` command handles
+auth, config, status, and service unit management exactly as documented below.
+
+**Releasing a new version:** the formula gets its version from a git tag
+(`url "..." , using: :git, tag: "v0.1.0", revision: "..."`), so publish the new tag on the
+remote and bump both `tag:` and `revision:` to match in `Formula/scrobbler.rb`.
+
 ### Install from your own build output
 
 After building, copy the binaries to a directory on your `PATH`, for example:

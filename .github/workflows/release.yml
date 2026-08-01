@@ -19,26 +19,41 @@ on:
 jobs:
   package:
     runs-on: ubuntu-latest
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Homebrew
-        uses: homebrew/actions/setup-homebrew@master
+        uses: homebrew/actions/setup-homebrew@1f8e202ffddf94def7f42f6fa3a482e821489f9c
 
-      - name: Setup .NET (cached)
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-          cache: true
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'global.json', '**/packages.lock.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
 
       - name: Drop version into formula
         run: |
           sed -i "s/tag: \"v[^\"]*\"/tag: \"${{ github.event.inputs.version }}\"/" Formula/scrobbler.rb
 
       - name: Build and package via Homebrew (from source)
+        env:
+          NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
         run: |
-          brew install --build-from-source ./Formula/scrobbler.rb
-          brew bottle --json --root-url "https://github.com/Avabin/Scrobbler/releases" scrobbler \
+          brew tap-new local/scrobbler
+          TAP_FORMULA="$(brew --repository)/Library/Taps/local/homebrew-scrobbler/Formula"
+          mkdir -p "$TAP_FORMULA"
+          cp Formula/scrobbler.rb "$TAP_FORMULA/scrobbler.rb"
+          brew install --build-from-source local/scrobbler/scrobbler
+          brew bottle --json --root-url "https://github.com/Avabin/Scrobbler/releases" local/scrobbler/scrobbler \
             | tee bottle-output.json
 
       - name: Upload bottle artifact

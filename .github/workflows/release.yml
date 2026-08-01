@@ -1,19 +1,20 @@
-name: package
+name: release
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "Scrobbler/**"
-      - "Scrobbler.Cli/**"
-      - "Scrobbler.LastFm/**"
-      - "Formula/**"
-      - "global.json"
-      - "Scrobbler.slnx"
-      - "**/*.csproj"
-      - "**/*.props"
-      - "**/*.targets"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. v0.2.0)"
+        required: true
+        type: string
+      publish:
+        description: "Publish a GitHub release"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 jobs:
   package:
@@ -31,6 +32,10 @@ jobs:
           cache: true
           cache-dependency-path: "**/packages.lock.json"
 
+      - name: Drop version into formula
+        run: |
+          sed -i "s/tag: \"v[^\"]*\"/tag: \"${{ github.event.inputs.version }}\"/" Formula/scrobbler.rb
+
       - name: Build and package via Homebrew (from source)
         run: |
           brew install --build-from-source ./Formula/scrobbler.rb
@@ -46,3 +51,12 @@ jobs:
             scrobbler--*.bottle.json
             bottle-output.json
           if-no-files-found: error
+
+      - name: Create GitHub release
+        if: github.event.inputs.publish == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: ${{ github.event.inputs.version }}
+          draft: true
+          files: scrobbler--*.bottle.tar.gz

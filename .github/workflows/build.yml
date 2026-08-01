@@ -1,0 +1,48 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Scrobbler/**"
+      - "Scrobbler.Cli/**"
+      - "Scrobbler.LastFm/**"
+      - "global.json"
+      - "Scrobbler.slnx"
+      - "**/*.csproj"
+      - "**/*.props"
+      - "**/*.targets"
+  pull_request:
+    paths:
+      - "Scrobbler/**"
+      - "Scrobbler.Cli/**"
+      - "Scrobbler.LastFm/**"
+      - "global.json"
+      - "Scrobbler.slnx"
+      - "**/*.csproj"
+      - "**/*.props"
+      - "**/*.targets"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET (cached)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+
+      - name: Restore
+        run: dotnet restore Scrobbler.slnx
+
+      - name: Build
+        run: dotnet build Scrobbler.slnx -c Release --no-restore
+
+      # Future test step placeholder:
+      # - name: Test
+      #   run: dotnet test Scrobbler.slnx -c Release --no-build

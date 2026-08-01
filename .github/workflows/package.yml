@@ -18,16 +18,13 @@ on:
 jobs:
   package:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/avabin/scrobbler-build:latest
+      user: linuxbrew
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Homebrew
-        uses: homebrew/actions/setup-homebrew@1f8e202ffddf94def7f42f6fa3a482e821489f9c
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -38,8 +35,6 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Build and package via Homebrew (from source)
-        env:
-          NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
         run: |
           brew tap-new local/scrobbler
           TAP_FORMULA="$(brew --repository)/Library/Taps/local/homebrew-scrobbler/Formula"

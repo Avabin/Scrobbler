@@ -1,0 +1,59 @@
+name: package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Scrobbler/**"
+      - "Scrobbler.Cli/**"
+      - "Scrobbler.LastFm/**"
+      - "global.json"
+      - "Scrobbler.slnx"
+      - "**/*.csproj"
+      - "**/*.props"
+      - "**/*.targets"
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Scrobbler.slnx
+
+      - name: Publish (NativeAOT)
+        run: |
+          dotnet publish Scrobbler.Cli/Scrobbler.Cli.csproj \
+            -c Release \
+            -r linux-x64 \
+            --self-contained \
+            -o out/scrbl-cli
+
+      - name: Publish daemon
+        run: |
+          dotnet publish Scrobbler/Scrobbler.csproj \
+            -c Release \
+            -r linux-x64 \
+            --self-contained \
+            -o out/scrbl
+
+      - name: Package
+        run: |
+          mkdir -p artifact
+          tar -C out/scrbl-cli -czf artifact/scrbl-cli-linux-x64.tar.gz .
+          tar -C out/scrbl -czf artifact/scrbl-linux-x64.tar.gz .
+          sha256sum artifact/*.tar.gz > artifact/SHA256SUMS
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrbl-linux-x64
+          path: artifact/*
+          if-no-files-found: error

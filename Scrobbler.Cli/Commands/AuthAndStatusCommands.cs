@@ -4,8 +4,8 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ConsoleAppFramework;
-using Hqub.Lastfm;
 using Scrobbler.Cli.DBus;
+using Scrobbler.LastFm;
 
 /// <summary>
 /// Authentication and status commands.
@@ -17,6 +17,9 @@ public class AuthAndStatusCommands
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "scrobbler");
 
+    private const string ApiAccountCreateUrl = "https://www.last.fm/api/account/create";
+    private const string ApiAccountsUrl = "https://www.last.fm/api/accounts";
+
     /// <summary>
     /// Authenticate with Last.fm by opening the browser for authorization.
     /// If API key/secret are already saved in config, they are used automatically.
@@ -24,7 +27,7 @@ public class AuthAndStatusCommands
     /// <param name="apiKey">-k, Last.fm API key (optional if already configured).</param>
     /// <param name="apiSecret">-s, Last.fm API secret (optional if already configured).</param>
     [Command("auth")]
-    public async Task Auth(string? apiKey = null, string? apiSecret = null)
+    public async Task Authenticate(string? apiKey = null, string? apiSecret = null)
     {
         // Try loading from config if not provided
         var configPath = Path.Combine(ConfigDir, "appsettings.json");
@@ -35,33 +38,48 @@ public class AuthAndStatusCommands
             apiSecret ??= savedSecret;
         }
 
-        if (string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(apiSecret))
+        var missing = new List<string>();
+        if (string.IsNullOrEmpty(apiKey)) missing.Add("API key");
+        if (string.IsNullOrEmpty(apiSecret)) missing.Add("API secret");
+
+        if (missing.Count > 0)
         {
-            Console.WriteLine("API key and secret are required. Provide them via -k/-s flags or run 'set api-key' and 'set api-secret' first.");
+            Console.WriteLine("Last.fm API credentials are required but are not configured.");
+            Console.WriteLine($"Missing: {string.Join(", ", missing)}.");
+            Console.WriteLine();
+            Console.WriteLine("To generate them:");
+            Console.WriteLine($"  1. Apply for a Last.fm API account at {ApiAccountCreateUrl}");
+            Console.WriteLine($"  2. Configure the application at {ApiAccountsUrl} (name, description, optional logo)");
+            Console.WriteLine($"  3. Copy the API key and shared secret from your account page.");
+            Console.WriteLine();
+            Console.WriteLine("Then save them and re-run this command:");
+            Console.WriteLine("    scrbl-cli set api-key YOUR_API_KEY");
+            Console.WriteLine("    scrbl-cli set api-secret YOUR_API_SECRET");
+            Console.WriteLine("    scrbl-cli auth");
+            Console.WriteLine();
+            Console.WriteLine("Alternatively, pass them directly:");
+            Console.WriteLine("    scrbl-cli auth -k YOUR_API_KEY -s YOUR_API_SECRET");
             return;
         }
 
         var client = new LastfmClient(apiKey, apiSecret);
 
-        // 1. Get a request token and auth URL
+        // 1. Get a request token and build the authorization URL
         Console.WriteLine("Requesting authorization token...");
         var authUrl = await client.GetWebAuthenticationUrlAsync();
 
-        // 2. Open browser for user to authorize
-        Console.WriteLine("Opening browser for Last.fm authorization...");
-        Console.WriteLine($"If the browser doesn't open, visit:\n  {authUrl}");
-
+        // 2. Display + open the URL for the user to authorize
+        Console.WriteLine("Open the following URL in your browser, log in, and click Allow:");
+        Console.WriteLine($"  {authUrl}");
         OpenBrowser(authUrl);
 
-        // 3. Wait for user to authorize in browser
-        Console.WriteLine("\nAfter authorizing in the browser, press Enter to continue...");
-        Console.ReadLine();
+        // 3. Wait for the user to authorize in the browser
+        Console.WriteLine("\nPress any key to continue...");
+        Console.ReadKey(true);
 
-        // 4. Exchange token for session (auth.getSession)
+        // 4. Exchange the token for a session (auth.getSession)
         Console.WriteLine("Completing authentication...");
-        await client.AuthenticateViaWebAsync();
-
-        var sessionKey = client.Session.SessionKey;
+        var sessionKey = await client.GetWebSessionAsync();
         if (string.IsNullOrEmpty(sessionKey))
         {
             Console.WriteLine("Authentication failed. No session key received.");
@@ -96,12 +114,16 @@ public class AuthAndStatusCommands
     {
         try
         {
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo("xdg-open", url)
+            {
+                UseShellExecute = true,
+                CreateNoWindow = true
+            });
+            Console.WriteLine("Opened browser for Last.fm authorization.");
         }
         catch
         {
-            try { Process.Start("xdg-open", url); }
-            catch { /* user will open manually */ }
+            Console.WriteLine("Could not detect a browser to open automatically; open the URL above manually.");
         }
     }
 

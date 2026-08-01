@@ -1,16 +1,16 @@
 namespace Scrobbler;
 
-using Hqub.Lastfm;
-using Hqub.Lastfm.Entities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Scrobbler.LastFm;
 
 public class ScrobblingService : BackgroundService
 {
     private readonly ILogger<ScrobblingService> _logger;
     private readonly IOptionsMonitor<ScrobblerConfig> _config;
     private readonly MprisPlayerMonitor _mpris;
+    private readonly HttpClient _http;
     private LastfmClient? _lastfmClient;
 
     private TrackInfo? _currentTrack;
@@ -24,7 +24,7 @@ public class ScrobblingService : BackgroundService
     private string? _lastApiSecret;
     private string? _lastSessionKey;
 
-    public bool IsAuthenticated => _lastfmClient?.Session?.Authenticated == true;
+    public bool IsAuthenticated => _lastfmClient is { SessionKey: not null and not "" };
     public string? LastScrobbledInfo { get; private set; }
     public TrackInfo? CurrentTrack => _currentTrack;
     public TimeSpan PlayTime => _accumulatedPlayTime;
@@ -36,11 +36,13 @@ public class ScrobblingService : BackgroundService
     public ScrobblingService(
         ILogger<ScrobblingService> logger,
         IOptionsMonitor<ScrobblerConfig> config,
-        MprisPlayerMonitor mpris)
+        MprisPlayerMonitor mpris,
+        HttpClient http)
     {
         _logger = logger;
         _config = config;
         _mpris = mpris;
+        _http = http;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -97,13 +99,13 @@ public class ScrobblingService : BackgroundService
             throw new InvalidOperationException(
                 "Last.fm ApiKey and ApiSecret are required. Run 'scrobbler-cli auth' or set them in appsettings.json.");
 
-        _lastfmClient = new LastfmClient(apiKey, apiSecret);
+        _lastfmClient = new LastfmClient(apiKey, apiSecret, _http);
 
         // Try saved session key first
         var savedKey = await LoadSessionKeyAsync();
         if (!string.IsNullOrEmpty(savedKey))
         {
-            _lastfmClient.Session.SessionKey = savedKey;
+            _lastfmClient.SessionKey = savedKey;
             _logger.LogInformation("Loaded saved Last.fm session key");
             return;
         }
@@ -111,21 +113,29 @@ public class ScrobblingService : BackgroundService
         // Try config session key
         if (!string.IsNullOrEmpty(cfg.SessionKey))
         {
-            _lastfmClient.Session.SessionKey = cfg.SessionKey;
+            _lastfmClient.SessionKey = cfg.SessionKey;
             await SaveSessionKeyAsync(cfg.SessionKey);
             _logger.LogInformation("Using configured Last.fm session key");
             return;
         }
 
-        // Authenticate with username/password
-        if (string.IsNullOrEmpty(cfg.Username) || string.IsNullOrEmpty(cfg.Password))
-            throw new InvalidOperationException(
-                "Last.fm authentication required. Provide Username/Password or SessionKey in appsettings.json.");
+        // Try username/password authentication (mobile session flow) if configured
+        if (!string.IsNullOrEmpty(cfg.Username) && !string.IsNullOrEmpty(cfg.Password))
+        {
+            try
+            {
+                var sessionKey = await _lastfmClient.AuthenticateAsync(cfg.Username, cfg.Password);
+                await SaveSessionKeyAsync(sessionKey);
+                _logger.LogInformation("Authenticated with Last.fm as {User}", _lastfmClient.SessionUsername);
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Last.fm username/password authentication failed");
+            }
+        }
 
-        _logger.LogInformation("Authenticating with Last.fm as '{User}'...", cfg.Username);
-        await _lastfmClient.AuthenticateAsync(cfg.Username, cfg.Password);
-        await SaveSessionKeyAsync(_lastfmClient.Session.SessionKey);
-        _logger.LogInformation("Authenticated successfully, session key saved to {Path}", SessionKeyPath);
+        _logger.LogWarning("No Last.fm session key found. Run 'scrbl-cli auth' to authenticate.");
     }
 
     private async Task PollAndScrobbleAsync()
@@ -206,8 +216,8 @@ public class ScrobblingService : BackgroundService
 
         try
         {
-            await _lastfmClient.Track.UpdateNowPlayingAsync(
-                track.Title, track.Artist, album: track.Album);
+            await _lastfmClient.UpdateNowPlayingAsync(
+                track.Artist, track.Title, album: track.Album);
             _nowPlayingSent = true;
             _logger.LogDebug("Sent 'now playing': {Artist} - {Title}", track.Artist, track.Title);
         }
@@ -261,10 +271,10 @@ public class ScrobblingService : BackgroundService
                 Artist = track.Artist,
                 Track = track.Title,
                 Album = track.Album,
-                Date = DateTime.UtcNow
+                StartedAtUtc = DateTime.UtcNow
             };
 
-            var response = await _lastfmClient.Track.ScrobbleAsync(scrobble);
+            var response = await _lastfmClient.ScrobbleAsync(scrobble);
             _scrobbled = true;
             LastScrobbledInfo = $"{track.Artist} - {track.Title}";
 
@@ -295,9 +305,9 @@ public class ScrobblingService : BackgroundService
         if (_lastfmClient == null)
         {
             var cfg = _config.CurrentValue;
-            _lastfmClient = new LastfmClient(cfg.ApiKey, cfg.ApiSecret);
+            _lastfmClient = new LastfmClient(cfg.ApiKey, cfg.ApiSecret, _http);
         }
-        _lastfmClient.Session.SessionKey = sessionKey;
+        _lastfmClient.SessionKey = sessionKey;
         _lastSessionKey = sessionKey;
         _ = SaveSessionKeyAsync(sessionKey);
         _logger.LogInformation("Session key updated via CLI");
@@ -314,13 +324,13 @@ public class ScrobblingService : BackgroundService
 
             if (!string.IsNullOrEmpty(cfg.ApiKey) && !string.IsNullOrEmpty(cfg.ApiSecret))
             {
-                _lastfmClient = new LastfmClient(cfg.ApiKey, cfg.ApiSecret);
+                _lastfmClient = new LastfmClient(cfg.ApiKey, cfg.ApiSecret, _http);
 
                 // Restore session key
                 var sk = cfg.SessionKey;
                 if (string.IsNullOrEmpty(sk)) sk = _lastSessionKey;
                 if (!string.IsNullOrEmpty(sk))
-                    _lastfmClient.Session.SessionKey = sk;
+                    _lastfmClient.SessionKey = sk;
             }
         }
         // Session key changed in config
@@ -329,7 +339,7 @@ public class ScrobblingService : BackgroundService
             _logger.LogInformation("Session key changed in config, updating");
             _lastSessionKey = cfg.SessionKey;
             if (_lastfmClient != null)
-                _lastfmClient.Session.SessionKey = cfg.SessionKey;
+                _lastfmClient.SessionKey = cfg.SessionKey;
         }
 
         if (!string.IsNullOrEmpty(cfg.PreferredPlayer))

@@ -15,6 +15,8 @@ builder.Services.Configure<ScrobblerConfig>(
 
 builder.Services.AddSystemd();
 
+builder.Services.AddHttpClient();
+
 builder.Services.AddSingleton<MprisPlayerMonitor>();
 builder.Services.AddSingleton<ScrobblingService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ScrobblingService>());

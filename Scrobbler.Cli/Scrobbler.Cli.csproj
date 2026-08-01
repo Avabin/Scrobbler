@@ -15,9 +15,12 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Hqub.Last.fm" Version="2.5.1" />
     <PackageReference Include="Tmds.DBus.Generator" Version="0.91.1" />
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.91.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Scrobbler.LastFm\Scrobbler.LastFm.csproj" />
   </ItemGroup>
 
   <ItemGroup>

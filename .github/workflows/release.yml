@@ -21,7 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/avabin/scrobbler-build:latest
-      options: --user linuxbrew
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
     steps:
@@ -41,6 +40,10 @@ jobs:
 
       - name: Build and package via Homebrew (from source)
         run: |
+          # brew must run as its own (non-root) user; the image provides
+          # passwordless sudo for linuxbrew.
+          sudo -u linuxbrew bash <<'EOF'
+          set -e
           git config --global user.email "andrzej.piotrowski76@gmail.com"
           git config --global user.name "Avabin"
           brew tap-new local/scrobbler
@@ -50,6 +53,8 @@ jobs:
           brew install --build-from-source local/scrobbler/scrobbler
           brew bottle --json --root-url "https://github.com/Avabin/Scrobbler/releases" local/scrobbler/scrobbler \
             | tee bottle-output.json
+          EOF
+          find . -name '*.bottle.tar.gz' -o -name '*.bottle.json' | head
 
       - name: Upload bottle artifact
         uses: actions/upload-artifact@v4

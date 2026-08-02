@@ -38,6 +38,7 @@ jobs:
 
       - name: Drop version and revision into formula
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           VERSION="${{ github.event.inputs.version }}"
           REVISION="$(git rev-list -n 1 "$VERSION")"
           sed -i "s/tag: \"v[^\"]*\"/tag: \"$VERSION\"/" Formula/scrobbler.rb

@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/avabin/scrobbler-build:latest
+      options: --user root
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
     steps:

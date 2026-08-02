@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/avabin/scrobbler-build:latest
+      options: --user root
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
     steps:
@@ -35,6 +36,7 @@ jobs:
 
       - name: Build and package via Homebrew (from source)
         run: |
+          su - linuxbrew
           # brew must run as its own (non-root) user; the image provides
           # passwordless sudo for linuxbrew.
           sudo -u linuxbrew bash <<'EOF'

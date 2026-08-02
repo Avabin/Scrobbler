@@ -36,19 +36,11 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
-      - name: Drop version and revision into formula
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          VERSION="${{ github.event.inputs.version }}"
-          REVISION="$(git rev-list -n 1 "$VERSION")"
-          sed -i "s/tag: \"v[^\"]*\"/tag: \"$VERSION\"/" Formula/scrobbler.rb
-          sed -i "s/revision: \"[0-9a-f]*\"/revision: \"$REVISION\"/" Formula/scrobbler.rb
-
-      - name: Build and package via Homebrew (from source)
-        run: |
-          # checkout/sed ran as root; the script re-execs itself as linuxbrew.
-          chown -R linuxbrew:linuxbrew "$GITHUB_WORKSPACE"
-          bash scripts/package.sh
+      - name: Brew package (release)
+        id: brew
+        uses: ./.github/actions/brew-package
+        with:
+          version: ${{ github.event.inputs.version }}
 
       - name: Upload bottle artifact
         uses: actions/upload-artifact@v4

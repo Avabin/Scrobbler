@@ -1,0 +1,60 @@
+name: brew-package
+description: Build a Homebrew bottle of the scrobbler formula via package.sh
+
+inputs:
+  formula:
+    description: Path to the formula file (relative to workspace root)
+    required: false
+    default: Formula/scrobbler.rb
+  version:
+    description: Git tag (e.g. v0.2.0) to inject into the formula's `tag:`. If omitted, the formula is left as-is.
+    required: false
+  revision:
+    description: Git commit SHA to inject into `revision:`. If `version` is set and this is omitted, it is computed via `git rev-list -n 1 "$version"`.
+    required: false
+  root-url:
+    description: Root URL passed to `brew bottle --root-url`
+    required: false
+    default: https://github.com/Avabin/Scrobbler/releases
+
+outputs:
+  bottle-file:
+    description: Name of the produced `*.bottle.tar.gz`
+    value: ${{ steps.collect.outputs.bottle_file }}
+  bottle-json:
+    description: Name of the produced `*.bottle.json`
+    value: ${{ steps.collect.outputs.bottle_json }}
+
+runs:
+  using: composite
+  steps:
+    - name: Inject version/revision into formula (optional)
+      if: inputs.version != ''
+      shell: bash
+      run: |
+        set -euo pipefail
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        REV="${{ inputs.revision }}"
+        if [[ -z "$REV" ]]; then
+          REV="$(git rev-list -n 1 '${{ inputs.version }}')"
+        fi
+        sed -i "s/tag: \"v[^\"]*\"/tag: \"${{ inputs.version }}\"/" "${{ inputs.formula }}"
+        sed -i "s/revision: \"[0-9a-f]*\"/revision: \"$REV\"/" "${{ inputs.formula }}"
+
+    - name: Build and package via Homebrew (as linuxbrew)
+      shell: bash
+      run: |
+        set -euo pipefail
+        # checkout ran as root; package.sh re-execs itself as linuxbrew.
+        chown -R linuxbrew:linuxbrew "$GITHUB_WORKSPACE"
+        ROOT_URL="${{ inputs.root-url }}" bash scripts/package.sh
+
+    - name: Collect bottle artifact names
+      id: collect
+      shell: bash
+      run: |
+        set -euo pipefail
+        BOTTLE="$(find . -maxdepth 1 -name 'scrobbler--*.bottle.tar.gz' | head -n1 | xargs -r basename)"
+        JSON="$(find . -maxdepth 1 -name 'scrobbler--*.bottle.json' | head -n1 | xargs -r basename)"
+        echo "bottle_file=${BOTTLE}" >> "$GITHUB_OUTPUT"
+        echo "bottle_json=${JSON}" >> "$GITHUB_OUTPUT"

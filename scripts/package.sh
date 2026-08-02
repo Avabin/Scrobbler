@@ -13,7 +13,7 @@ set -euo pipefail
 # If running as root, re-exec this script as the linuxbrew user with a full
 # login environment (brew refuses to run as root). Preserve the working dir.
 if [[ "$(id -u)" -eq 0 ]]; then
-  exec su - linuxbrew -c "cd '$PWD' && bash '$0'"
+  exec su - linuxbrew -c "cd '$PWD' && ROOT_URL='${ROOT_URL:-}' bash '$0'"
 fi
 
 
@@ -26,7 +26,7 @@ mkdir -p "$TAP_FORMULA"
 cp Formula/scrobbler.rb "$TAP_FORMULA/scrobbler.rb"
 
 brew install --build-bottle local/scrobbler/scrobbler
-brew bottle --json --root-url "https://github.com/Avabin/Scrobbler/releases" local/scrobbler/scrobbler
+brew bottle --json --root-url "${ROOT_URL:-https://github.com/Avabin/Scrobbler/releases}" local/scrobbler/scrobbler
 
 echo "Bottle artifacts:"
 ls -la ./*.bottle.tar.gz ./*.bottle.json 2>/dev/null || true

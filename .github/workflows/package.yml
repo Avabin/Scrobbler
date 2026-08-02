@@ -33,11 +33,9 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
-      - name: Build and package via Homebrew (from source)
-        run: |
-          # checkout ran as root; the script re-execs itself as linuxbrew.
-          chown -R linuxbrew:linuxbrew "$GITHUB_WORKSPACE"
-          bash scripts/package.sh
+      - name: Brew package
+        id: brew
+        uses: ./.github/actions/brew-package
 
       - name: Upload bottle artifact
         uses: actions/upload-artifact@v4
@@ -46,5 +44,4 @@ jobs:
           path: |
             scrobbler--*.bottle.tar.gz
             scrobbler--*.bottle.json
-            bottle-output.json
           if-no-files-found: error
